@@ -6,6 +6,8 @@ project(InterruptibleSleepBinding)
 include(CTest)
 enable_testing()
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 add_subdirectory(pybind11)
 add_subdirectory(src/InternalLibrary)
 
