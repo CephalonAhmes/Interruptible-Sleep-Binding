@@ -6,7 +6,6 @@ import glob
 import shutil
 import pathlib
 
-BITS = struct.calcsize("P") * 8
 CMAKE_Target_Name = "PythonBinding"
 RootDirectory = os.path.dirname(os.path.abspath(__file__))
 
@@ -66,8 +65,7 @@ class BuildCMakeExt(build_ext):
         self.spawn(['cmake', '-S'+RootDirectory, '-B'+self.build_temp,
                     '-DWITH_PLAYER=OFF', '-DWITH_PYTHON_INSTALL=OFF',
                     '-DWITH_PYTHON_MODULE=ON',
-                    f"-DCMAKE_GENERATOR_PLATFORM=x"
-                    f"{'86' if BITS == 32 else '64'}"])
+                ])
 
         self.announce("Building binaries", level=3)
 
