@@ -1,6 +1,5 @@
 import setuptools
 from setuptools.command.build_ext import build_ext
-import struct
 import os
 import glob
 import shutil
@@ -47,37 +46,26 @@ class BuildCMakeExt(build_ext):
         """
 
         self.announce("Preparing the build environment", level=3)
-
-        build_dir = pathlib.Path(self.build_temp)
-
+        self.build_dir = pathlib.Path("./build/")
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
 
-        os.makedirs(build_dir, exist_ok=True)
+        os.makedirs(self.build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
 
-        # Now that the necessary directories are created, build
 
-        self.announce("Configuring cmake project", level=3)
-
-        # Change your cmake arguments below as necessary
-        # Below is just an example set of arguments for building Blender as a Python module
-
-        self.spawn(['cmake', '-S'+RootDirectory, '-B'+self.build_temp,
+        self.announce(f"Configuring cmake project to location {self.build_dir}", level=3)
+        self.spawn(['cmake', '-S'+RootDirectory, '-B'+str(self.build_dir),
                     '-DWITH_PLAYER=OFF', '-DWITH_PYTHON_INSTALL=OFF',
                     '-DWITH_PYTHON_MODULE=ON',
                 ])
 
-        self.announce("Building binaries", level=3)
-
-        self.spawn(["cmake", "--build", self.build_temp, "--target", CMAKE_Target_Name,
+        self.announce(f"Building binaries to location {self.build_dir}", level=3)
+        self.spawn(["cmake", "--build", str(self.build_dir), "--target", CMAKE_Target_Name,
                     "--config", "Release"])
 
-        # Build finished, now copy the files into the copy directory
-        # The copy directory is the parent directory of the extension (.pyd)
 
-        self.announce("Moving built python module", level=3)
-
-        bin_dir = os.path.join(build_dir, 'Release')
+        bin_dir = os.path.join(RootDirectory, './build/lib')
+        self.announce(f"Moving built python module out of {bin_dir}", level=3)
         self.distribution.bin_dir = bin_dir
 
         pyd_path = [os.path.join(bin_dir, _pyd) for _pyd in
