@@ -122,10 +122,12 @@ jobs:
         env:
           pull_request_id: ${{github.event.pull_request.number}}
         run: |
+          git tag -d $(git tag -l)
+          git fetch --tags
           $tags = git tag -l
-          $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -First 1
+          $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -Last 1
           if($latest_tag){
-            echo "::set-output name=latest_tag::$(latest_tag.substring(1))"
+            echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
           }
 
           else{
