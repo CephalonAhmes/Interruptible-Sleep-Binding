@@ -162,3 +162,8 @@ jobs:
           header: Pre-Release Header
           message: |
             [ Pre-release b${{ steps.bump-semver.outputs.new_version  }} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
+
+
+      - uses: geekyeggo/delete-artifact@v1
+        with:
+          name: dist
