@@ -67,6 +67,12 @@ jobs:
           }
           python -m pip install $wheel.FullName
           python -m pytest
+      
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/*
+
 
   Build-Sdist:
     name: Build and test sdist
@@ -99,7 +105,13 @@ jobs:
           python -m pip install $sdist.FullName
           python -m pytest
 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/*
+
   Create-Pre-Release:
+    needs: [Build-Sdist, Build-Wheel]
     name: Create-Pre-Release
     runs-on: ubuntu-latest
     steps:
@@ -127,6 +139,13 @@ jobs:
           current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
           level: prerelease
 
+      - name: download-artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
+
+
       - name: Create-Prerelease
         id: Create-Prerelease
         uses: softprops/action-gh-release@v1
@@ -134,6 +153,7 @@ jobs:
           prerelease: true
           name: ${{ github.event.pull_request.title }}
           tag_name: "b${{ steps.bump-semver.outputs.new_version  }}"
+          files: dist/*
       
       - name: Create-Release-Sticky-Comment
         uses: marocchino/sticky-pull-request-comment@v2
@@ -142,11 +162,3 @@ jobs:
           header: Pre-Release Header
           message: |
             [ Pre-release b${{ steps.bump-semver.outputs.new_version  }} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
-
-      - name: Pre-Release-Sticky-Comment-Failure
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          hide_and_recreate: true
-          header: Pre-Release Header
-          message: Failed to create pre-release
