@@ -8,8 +8,7 @@ requires = [
 [tool.cibuildwheel]
 before-test = "python -m pip install pytest"
 test-command = "python -m pytest {package}/tests"
-skip = ["cp36-*", "pp*"]
-
+skip = ["*-win32"]
 
 [tool.pytest.ini_options]
 testpaths = [

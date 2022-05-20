@@ -1,6 +1,6 @@
 import setuptools
 from setuptools.command.build_ext import build_ext
-import os
+import os, sys
 import glob
 import shutil
 import pathlib, json
@@ -56,7 +56,7 @@ class BuildCMakeExt(build_ext):
         self.announce(f"Configuring cmake project to location {self.build_dir}", level=3)
         self.spawn(['cmake', '-S'+RootDirectory, '-B'+str(self.build_dir),
                     '-DWITH_PLAYER=OFF', '-DWITH_PYTHON_INSTALL=OFF',
-                    '-DWITH_PYTHON_MODULE=ON',
+                    '-DWITH_PYTHON_MODULE=ON', "-DPYTHON_EXECUTABLE:FILEPATH="+sys.executable
                 ])
 
         self.announce(f"Building binaries to location {self.build_dir}", level=3)
