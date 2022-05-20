@@ -1,4 +1,4 @@
-include CMakeLists.txt conftest.py  pytest.ini package_version.json
+include CMakeLists.txt conftest.py  pytest.ini package_version.json LICENSE
 recursive-include src *
 recursive-include pybind11 *
 recursive-include tests *
