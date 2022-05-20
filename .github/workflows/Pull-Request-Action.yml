@@ -9,46 +9,8 @@ on:
 permissions: write-all
 
 jobs:
-  Get-New-Version-Number:
-    runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.select-final-version-output.outputs.final_tag_name  }}
-    steps:
-      - uses: actions/checkout@v2
-      - id: get-latest-tag
-        shell: pwsh
-        env:
-          pull_request_id: ${{github.event.pull_request.number}}
-        run: |
-          git fetch --all --tags
-          $tags = git tag -l
-          $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -Last 1
-          if($latest_tag){
-            echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
-          }
-
-      - uses: actions-ecosystem/action-bump-semver@v1
-        id: bump-semver
-        if: ${{ steps.get-latest-tag.outputs.latest_tag }}
-        with:
-          current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
-          level: patch
-      
-      - name: select-final-version-output
-        id: select-final-version-output
-        shell: pwsh
-        env:
-          pull_request_id: ${{github.event.pull_request.number}}
-          latest_tag: ${{ steps.get-latest-tag.outputs.latest_tag }}
-          new_version: ${{ steps.bump-semver.outputs.new_version  }}
-        run: |
-          if($Env:latest_tag){
-            echo "::set-output name=final_tag_name::$($Env:new_version)"
-          }
-          else{
-            echo "::set-output name=final_tag_name::0.$($Env:pull_request_id).0"
-          }
-
+  Get-New-Prerelease-Version-Number:
+    uses: ./.github/workflows/Get-New-Prerelease-Version-Number.yml
 
 
   Validate-Pull-Request-Labels:
@@ -76,7 +38,7 @@ jobs:
           message: "PR label checks passed successfully ✔"
 
   Build-Wheel:
-    needs: [Get-New-Version-Number]
+    needs: [Get-New-Prerelease-Version-Number]
     name: Build and test wheels on ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -98,7 +60,7 @@ jobs:
 
       - name: compile
         env:
-          VERSIONNUMBER: ${{needs.Get-New-Version-Number.outputs.new_version}}
+          VERSIONNUMBER: ${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
         run: |
           python ./setup.py bdist_wheel clean
       
@@ -120,7 +82,7 @@ jobs:
 
 
   Build-Sdist:
-    needs: [Get-New-Version-Number]
+    needs: [Get-New-Prerelease-Version-Number]
     name: Build and test sdist
     runs-on: ubuntu-latest
     steps:
@@ -138,7 +100,7 @@ jobs:
 
       - name: compile
         env:
-          VERSIONNUMBER: ${{needs.Get-New-Version-Number.outputs.new_version}}
+          VERSIONNUMBER: ${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
         run: |
           python ./setup.py sdist clean
       
@@ -160,7 +122,7 @@ jobs:
 
 
   Create-Pre-Release:
-    needs: [Build-Sdist, Build-Wheel, Get-New-Version-Number]
+    needs: [Build-Sdist, Build-Wheel, Get-New-Prerelease-Version-Number]
     name: Create-Pre-Release
     runs-on: ubuntu-latest
     steps:
@@ -180,7 +142,7 @@ jobs:
           target_commitish: ${{ github.event.pull_request.head.sha }}
           prerelease: true
           name: ${{ github.event.pull_request.title }}
-          tag_name: "b${{needs.Get-New-Version-Number.outputs.new_version}}"
+          tag_name: "b${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}"
           files: dist/*
       
       - name: Create-Release-Sticky-Comment
@@ -189,7 +151,7 @@ jobs:
           hide_and_recreate: true
           header: Pre-Release Header
           message: |
-            [ Pre-release b${{needs.Get-New-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
+            [ Pre-release b${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
 
 
       - uses: geekyeggo/delete-artifact@v1
