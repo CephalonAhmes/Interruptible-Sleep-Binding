@@ -20,6 +20,7 @@ jobs:
         env:
           pull_request_id: ${{github.event.pull_request.number}}
         run: |
+          git fetch --all --tags
           $tags = git tag -l
           $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -Last 1
           if($latest_tag){
@@ -176,6 +177,7 @@ jobs:
         id: Create-Prerelease
         uses: softprops/action-gh-release@v1
         with:
+          target_commitish: ${{ github.event.pull_request.head.sha }}
           prerelease: true
           name: ${{ github.event.pull_request.title }}
           tag_name: "b${{needs.Get-New-Version-Number.outputs.new_version}}"
