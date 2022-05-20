@@ -57,12 +57,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -r requirements.txt --upgrade
+          python -m pip install cibuildwheel==2.5.0
 
       - name: compile
         env:
           VERSIONNUMBER: ${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
         run: |
-          python ./setup.py bdist_wheel clean
+          python -m cibuildwheel --output-dir dist
       
       - name: Test compiled wheel
         shell: pwsh
@@ -163,5 +164,6 @@ jobs:
           repository_url: https://test.pypi.org/legacy/
 
       - uses: geekyeggo/delete-artifact@v1
+        if: always()
         with:
           name: dist
