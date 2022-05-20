@@ -12,7 +12,7 @@ jobs:
   Get-New-Version-Number:
     runs-on: ubuntu-latest
     outputs:
-      new_version: ${{ steps.bump-semver.outputs.new_version  }}
+      new_version: ${{ steps.select-final-version-output.outputs.final_tag_name  }}
     steps:
       - uses: actions/checkout@v2
       - id: get-latest-tag
@@ -26,16 +26,28 @@ jobs:
             echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
           }
 
-          else{
-            echo "::set-output name=latest_tag::0.$($Env:pull_request_id).0"
-          }
-
-
       - uses: actions-ecosystem/action-bump-semver@v1
         id: bump-semver
+        if: ${{ steps.get-latest-tag.outputs.latest_tag }}
         with:
           current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
-          level: prerelease
+          level: patch
+      
+      - name: select-final-version-output
+        id: select-final-version-output
+        shell: pwsh
+        env:
+          pull_request_id: ${{github.event.pull_request.number}}
+          latest_tag: ${{ steps.get-latest-tag.outputs.latest_tag }}
+          new_version: ${{ steps.bump-semver.outputs.new_version  }}
+        run: |
+          if($Env:latest_tag){
+            echo "::set-output name=final_tag_name::$($Env:new_version)"
+          }
+          else{
+            echo "::set-output name=final_tag_name::0.$($Env:pull_request_id).0"
+          }
+
 
 
   Validate-Pull-Request-Labels:
