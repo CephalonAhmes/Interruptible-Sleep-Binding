@@ -60,26 +60,16 @@ jobs:
           python -m pip install cibuildwheel==2.5.0
 
       - name: compile
+        uses: pypa/cibuildwheel@v2.5.0
         env:
-          VERSIONNUMBER: ${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
-        run: |
-          python -m cibuildwheel --output-dir dist
-      
-      - name: Test compiled wheel
-        shell: pwsh
-        run: |
-          $wheel = Get-ChildItem ./dist/*.whl | select -First 1
-          if(-not $wheel){
-            Write-Error "No wheel found"
-            exit 1
-          }
-          python -m pip install $wheel.FullName
-          python -m pytest
-      
+          CIBW_ENVIRONMENT: VERSIONNUMBER=${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
+          CIBW_TEST_COMMAND: pytest {package}
+
+
       - uses: actions/upload-artifact@v3
         with:
           name: dist
-          path: dist/*
+          path: ./wheelhouse/*.whl
 
 
   Build-Sdist:

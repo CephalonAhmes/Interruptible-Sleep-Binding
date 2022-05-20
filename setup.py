@@ -94,12 +94,13 @@ class CleanCommand(setuptools.Command):
 
 
 def get_version_number():
-    if os.path.isfile("package_version.json"):
-        with open("package_version.json", encoding = 'utf-8') as file:
-            data = json.load(file)
+    if not os.path.isfile("package_version.json"):
+        return os.environ.get('VERSIONNUMBER', "0.0.0")
 
-        return data['VERSIONNUMBER']
-    return os.environ.get('VERSIONNUMBER', "0.0.0")
+    with open("package_version.json", encoding = 'utf-8') as file:
+        data = json.load(file)
+
+    return data['VERSIONNUMBER']
 
 setuptools.setup(name='InterruptibleSleepBinding',
                  version=get_version_number(),
