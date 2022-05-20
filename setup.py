@@ -3,7 +3,7 @@ from setuptools.command.build_ext import build_ext
 import os
 import glob
 import shutil
-import pathlib
+import pathlib, json
 
 CMAKE_Target_Name = "PythonBinding"
 RootDirectory = os.path.dirname(os.path.abspath(__file__))
@@ -93,22 +93,30 @@ class CleanCommand(setuptools.Command):
             shutil.rmtree(file_to_delete)
 
 
+def get_version_number():
+    if os.path.isfile("package_version.json"):
+        with open("package_version.json", encoding = 'utf-8') as file:
+            data = json.load(file)
+
+        return data['VERSIONNUMBER']
+    return os.environ.get('VERSIONNUMBER', "0.0.0")
+
 setuptools.setup(name='InterruptibleSleepBinding',
-                 version=os.environ.get('VERSIONNUMBER', "0.0.0"),
+                 version=get_version_number(),
                  ext_modules=[CMakeExtension(
                      name="InterruptibleSleepBinding")],
                  description="A single-function module created in c++ to get around time.sleep()'s limitations when handling signals",
                  long_description=open("./README.md", 'r').read(),
                  long_description_content_type="text/markdown",
                  keywords="test, cmake, extension",
+                 url="https://github.com/CephalonAhmes/Interruptible-Sleep-Binding",
                  classifiers=["Intended Audience :: Developers",
-                              "License :: OSI Approved :: "
-                              "GNU Lesser General Public License v3 (LGPLv3)",
+                              "MIT License",
                               "Natural Language :: English",
                               "Programming Language :: C++",
                               "Programming Language :: Python",
                               "Programming Language :: Python :: Implementation :: CPython"],
-                 license='GPL-3.0',
+                 license='MIT',
                  cmdclass={
                      'build_ext': BuildCMakeExt,
                      'clean': CleanCommand,

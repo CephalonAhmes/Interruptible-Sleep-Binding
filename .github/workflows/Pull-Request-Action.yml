@@ -101,7 +101,9 @@ jobs:
       - name: compile
         env:
           VERSIONNUMBER: ${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
+        shell: pwsh
         run: |
+          @{'VERSIONNUMBER'=$Env:VERSIONNUMBER} | ConvertTo-Json | Out-File "package_version.json"
           python ./setup.py sdist clean
       
       - name: Test sdist install
