@@ -9,6 +9,35 @@ on:
 permissions: write-all
 
 jobs:
+  Get-New-Version-Number:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump-semver.outputs.new_version  }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: get-latest-tag
+        shell: pwsh
+        env:
+          pull_request_id: ${{github.event.pull_request.number}}
+        run: |
+          $tags = git tag -l
+          $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -Last 1
+          if($latest_tag){
+            echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
+          }
+
+          else{
+            echo "::set-output name=latest_tag::0.$($Env:pull_request_id).0"
+          }
+
+
+      - uses: actions-ecosystem/action-bump-semver@v1
+        id: bump-semver
+        with:
+          current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
+          level: prerelease
+
+
   Validate-Pull-Request-Labels:
     name: Validate-Pull-Request-Action
     runs-on: ubuntu-latest
@@ -34,6 +63,7 @@ jobs:
           message: "PR label checks passed successfully ✔"
 
   Build-Wheel:
+    needs: [Get-New-Version-Number]
     name: Build and test wheels on ${{matrix.os}}
     strategy:
       fail-fast: false
@@ -54,6 +84,8 @@ jobs:
           python -m pip install -r requirements.txt --upgrade
 
       - name: compile
+        env:
+          VERSIONNUMBER: ${{needs.Get-New-Version-Number.outputs.new_version}}
         run: |
           python ./setup.py bdist_wheel clean
       
@@ -75,6 +107,7 @@ jobs:
 
 
   Build-Sdist:
+    needs: [Get-New-Version-Number]
     name: Build and test sdist
     runs-on: ubuntu-latest
     steps:
@@ -91,6 +124,8 @@ jobs:
           python -m pip install -r requirements.txt --upgrade
 
       - name: compile
+        env:
+          VERSIONNUMBER: ${{needs.Get-New-Version-Number.outputs.new_version}}
         run: |
           python ./setup.py sdist clean
       
@@ -110,36 +145,13 @@ jobs:
           name: dist
           path: dist/*
 
+
   Create-Pre-Release:
-    needs: [Build-Sdist, Build-Wheel]
+    needs: [Build-Sdist, Build-Wheel, Get-New-Version-Number]
     name: Create-Pre-Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
-      - id: get-latest-tag
-        shell: pwsh
-        env:
-          pull_request_id: ${{github.event.pull_request.number}}
-        run: |
-          git tag -d $(git tag -l)
-          git fetch --tags
-          $tags = git tag -l
-          $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -Last 1
-          if($latest_tag){
-            echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
-          }
-
-          else{
-            echo "::set-output name=latest_tag::0.$($Env:pull_request_id).0"
-          }
-
-
-      - uses: actions-ecosystem/action-bump-semver@v1
-        id: bump-semver
-        with:
-          current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
-          level: prerelease
 
       - name: download-artifacts
         uses: actions/download-artifact@v3
@@ -154,7 +166,7 @@ jobs:
         with:
           prerelease: true
           name: ${{ github.event.pull_request.title }}
-          tag_name: "b${{ steps.bump-semver.outputs.new_version  }}"
+          tag_name: "b${{needs.Get-New-Version-Number.outputs.new_version}}"
           files: dist/*
       
       - name: Create-Release-Sticky-Comment
@@ -163,7 +175,7 @@ jobs:
           hide_and_recreate: true
           header: Pre-Release Header
           message: |
-            [ Pre-release b${{ steps.bump-semver.outputs.new_version  }} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
+            [ Pre-release b${{needs.Get-New-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
 
 
       - uses: geekyeggo/delete-artifact@v1
