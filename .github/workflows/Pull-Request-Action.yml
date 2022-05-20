@@ -155,6 +155,12 @@ jobs:
           message: |
             [ Pre-release b${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
 
+      - name: Upload-To-Pypi
+        uses: pypa/gh-action-pypi-publish@v1.5.0
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TEST_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
       - uses: geekyeggo/delete-artifact@v1
         with:
