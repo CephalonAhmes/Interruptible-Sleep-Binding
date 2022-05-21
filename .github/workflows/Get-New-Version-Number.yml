@@ -1,12 +1,28 @@
 on:
   workflow_call:
+    inputs:
+      change_type:
+        description: "Dictates the version increment"
+        required: true
+        type: string
+
+      match:
+        description: "Used to find the latest tag"
+        required: true
+        type: string
+      
+      default:
+        description: "If no match is found"
+        required: true
+        type: string
+
     outputs:
       new_version: 
         description: "Final returned version number"
-        value: ${{ jobs.Get-New-Prerelease-Version-Number.outputs.new_version }}
+        value: ${{ jobs.Get-New-Version-Number.outputs.new_version }}
 
 jobs:
-  Get-New-Prerelease-Version-Number:
+  Get-New-Version-Number:
     name: Get-New-Version-Number
     runs-on: ubuntu-latest
     outputs:
@@ -15,12 +31,10 @@ jobs:
       - uses: actions/checkout@v2
       - id: get-latest-tag
         shell: pwsh
-        env:
-          pull_request_id: ${{github.event.pull_request.number}}
         run: |
           git fetch --all --tags
           $tags = git tag -l
-          $latest_tag = $tags | where-object{ $_ -match "b0\.$($Env:pull_request_id).*" } | select -Last 1
+          $latest_tag = $tags | where-object{ $_ -match "${{inputs.match}}" } | select -Last 1
           if($latest_tag){
             echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
           }
@@ -30,19 +44,15 @@ jobs:
         if: ${{ steps.get-latest-tag.outputs.latest_tag }}
         with:
           current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
-          level: patch
+          level: ${{inputs.change_type}}
       
       - name: select-final-version-output
         id: select-final-version-output
         shell: pwsh
-        env:
-          pull_request_id: ${{github.event.pull_request.number}}
-          latest_tag: ${{ steps.get-latest-tag.outputs.latest_tag }}
-          new_version: ${{ steps.bump-semver.outputs.new_version  }}
         run: |
-          if($Env:latest_tag){
-            echo "::set-output name=new_version::$($Env:new_version)"
+          if("${{ steps.get-latest-tag.outputs.latest_tag }}"){
+            echo "::set-output name=new_version::${{ steps.bump-semver.outputs.new_version  }}"
           }
           else{
-            echo "::set-output name=new_version::0.$($Env:pull_request_id).0"
+            echo "::set-output name=new_version::${{inputs.default}}"
           }

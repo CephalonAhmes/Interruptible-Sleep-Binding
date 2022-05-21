@@ -3,109 +3,34 @@ name: Pull-Request-Action
 on:
   pull_request:
     branch: [ master ]
-    types: [ unlabeled, labeled, reopened, opened, synchronize, edited]
-
 
 permissions: write-all
 
 jobs:
-  Get-New-Prerelease-Version-Number:
-    uses: ./.github/workflows/Get-New-Prerelease-Version-Number.yml
+  Get-New-Version-Number:
+    uses: ./.github/workflows/Get-New-Version-Number.yml
+    with:
+      change_type: patch
+      match: 'b0\.${{github.event.pull_request.number}}.*'
+      default: "0.${{github.event.pull_request.number}}.0"
 
-
-  Validate-Pull-Request-Labels:
-    name: Validate-Pull-Request-Action
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - id: GetCurrentPRLabel
-        uses: zwaldowski/match-label-action@v1
-        with:
-          allowed: major, minor, patch
-
-      - name: Label-Status-Comment
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          hide_and_recreate: true
-          header: Label-Status-Comment
-          message: "Invalid pull request labels, make sure to set one and only one of the following labels: major, minor"
-          
-      - name: Label-Status-Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: Label-Status-Comment
-          message: "PR label checks passed successfully ✔"
+  Get-Changelog:
+    uses: ./.github/workflows/Get-Changelog.yml
 
   Build-Wheel:
-    needs: [Get-New-Prerelease-Version-Number]
-    name: Build and test wheels on ${{matrix.os}}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{matrix.os}}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10.4'
-      
-      - name: compile
-        uses: pypa/cibuildwheel@v2.5.0
-        env:
-          CIBW_ENVIRONMENT: VERSIONNUMBER=${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
-
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: ./wheelhouse/*.whl
-
+    needs: [Get-New-Version-Number, Get-Changelog]
+    uses: ./.github/workflows/Build-Wheels.yml
+    with:
+      version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
 
   Build-Sdist:
-    needs: [Get-New-Prerelease-Version-Number]
-    name: Build and test sdist
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10.4'
-
-      - name: compile
-        env:
-          VERSIONNUMBER: ${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}
-        shell: pwsh
-        run: |
-          @{'VERSIONNUMBER'=$Env:VERSIONNUMBER} | ConvertTo-Json | Out-File "package_version.json"
-          python ./setup.py sdist clean
-      
-      - name: Test sdist install
-        shell: pwsh
-        run: |
-          $sdist = Get-ChildItem ./dist/*.tar.gz | select -First 1
-          if(-not $sdist){
-            Write-Error "No wheel found"
-            exit 1
-          }
-          python -m pip install pytest $sdist.FullName
-          python -m pytest
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: dist/*
-
+    needs: [Get-New-Version-Number, Get-Changelog]
+    uses: ./.github/workflows/Build-Sdists.yml
+    with:
+      version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
 
   Create-Pre-Release:
-    needs: [Build-Sdist, Build-Wheel, Get-New-Prerelease-Version-Number]
+    needs: [Build-Sdist, Build-Wheel, Get-New-Version-Number, Get-Changelog]
     name: Create-Pre-Release
     runs-on: ubuntu-latest
     steps:
@@ -117,15 +42,15 @@ jobs:
           name: dist
           path: dist/
 
-
       - name: Create-Prerelease
         id: Create-Prerelease
         uses: softprops/action-gh-release@v1
         with:
           target_commitish: ${{ github.event.pull_request.head.sha }}
           prerelease: true
-          name: ${{ github.event.pull_request.title }}
-          tag_name: "b${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}}"
+          body: ${{needs.Get-Changelog.outputs.changelog}}
+          name: b${{needs.Get-New-Version-Number.outputs.new_version}} - ${{ github.event.pull_request.title }}
+          tag_name: b${{needs.Get-New-Version-Number.outputs.new_version}}
           files: dist/*
       
       - name: Create-Release-Sticky-Comment
@@ -134,7 +59,7 @@ jobs:
           hide_and_recreate: true
           header: Pre-Release Header
           message: |
-            [ Pre-release b${{needs.Get-New-Prerelease-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
+            [ Pre-release b${{needs.Get-New-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
 
       - name: Upload-To-Pypi
         uses: pypa/gh-action-pypi-publish@v1.5.0
@@ -143,7 +68,7 @@ jobs:
           password: ${{ secrets.PYPI_TEST_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
 
-      - uses: geekyeggo/delete-artifact@v1
-        if: always()
-        with:
-          name: dist
+  Post-Flow-Cleanup:
+    needs: [Build-Sdist, Build-Wheel, Create-Pre-Release]
+    if: always()
+    uses: ./.github/workflows/Post-Flow-Cleanup.yml

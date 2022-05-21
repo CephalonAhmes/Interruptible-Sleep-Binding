@@ -1,0 +1,41 @@
+on:
+  workflow_call:
+    inputs:
+      version_number:
+        required: true
+        type: string
+
+jobs:
+  Build-Sdist:
+    name: Build and test sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10.4'
+
+      - name: compile
+        shell: pwsh
+        run: |
+          @{'VERSIONNUMBER' = ${{ inputs.version_number }} } | ConvertTo-Json | Out-File "package_version.json"
+          python ./setup.py sdist clean
+      
+      - name: Test sdist install
+        shell: pwsh
+        run: |
+          $sdist = Get-ChildItem ./dist/*.tar.gz | select -First 1
+          if(-not $sdist){
+            Write-Error "No wheel found"
+            exit 1
+          }
+          python -m pip install pytest $sdist.FullName
+          python -m pytest
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/*
