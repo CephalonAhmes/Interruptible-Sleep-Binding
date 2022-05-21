@@ -1,6 +1,6 @@
 import setuptools
 from setuptools.command.build_ext import build_ext
-import os, sys
+import os, sys, io
 import glob
 import shutil
 import pathlib, json
@@ -94,13 +94,14 @@ class CleanCommand(setuptools.Command):
 
 
 def get_version_number():
-    if not os.path.isfile("package_version.json"):
-        return os.environ.get('VERSIONNUMBER', "0.0.0")
+    if os.path.isfile("package_version.json"):
+        with io.open("package_version.json", mode='r', encoding='utf-8-sig') as file:
+            data = json.load(file)
 
-    with open("package_version.json", encoding = 'utf-8') as file:
-        data = json.load(file)
+        return data['VERSIONNUMBER']
 
-    return data['VERSIONNUMBER']
+    return os.environ.get('VERSIONNUMBER', "0.0.0")
+
 
 setuptools.setup(name='InterruptibleSleepBinding',
                  version=get_version_number(),

@@ -21,7 +21,7 @@ jobs:
       - name: compile
         shell: pwsh
         run: |
-          @{'VERSIONNUMBER' = ${{ inputs.version_number }} } | ConvertTo-Json | Out-File "package_version.json"
+          @{'VERSIONNUMBER' = "${{ inputs.version_number }}" } | ConvertTo-Json | Out-File "package_version.json" -Encoding UTF8
           python ./setup.py sdist clean
       
       - name: Test sdist install
