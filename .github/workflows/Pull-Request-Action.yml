@@ -12,9 +12,6 @@ on:
 permissions: write-all
 
 jobs:
-  Get-PR-Labels:
-    uses: ./.github/workflows/Get-PR-Labels.yml
-
   Get-New-Version-Number:
     uses: ./.github/workflows/Get-New-Version-Number.yml
     with:
@@ -26,13 +23,13 @@ jobs:
     uses: ./.github/workflows/Get-Changelog.yml
 
   Build-Wheel:
-    needs: [Get-New-Version-Number, Get-Changelog, Get-PR-Labels]
+    needs: [Get-New-Version-Number, Get-Changelog]
     uses: ./.github/workflows/Build-Wheels.yml
     with:
       version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
 
   Build-Sdist:
-    needs: [Get-New-Version-Number, Get-Changelog, Get-PR-Labels]
+    needs: [Get-New-Version-Number, Get-Changelog]
     uses: ./.github/workflows/Build-Sdists.yml
     with:
       version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}

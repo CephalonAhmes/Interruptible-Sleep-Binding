@@ -1,5 +1,9 @@
 name: Get-PR-Label
 on:
+  pull_request:
+    branches:
+      - master
+    types: [ unlabeled, labeled, reopened, opened, synchronize, edited]
   workflow_call:
     outputs:
       PRLabel: 
