@@ -2,7 +2,8 @@ name: On-Merge-Action
 
 on:
   push:
-    branch: [ master ]
+    branches:
+      - master
     paths-ignore:
     - 'README.md'
     - 'CHANGELOG.md'
