@@ -1,0 +1,34 @@
+on:
+  workflow_call:
+    inputs:
+      version_number:
+        required: true
+        type: string
+
+jobs:
+  Build-Wheel:
+    name: Build and test wheels on ${{matrix.os}}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10.4'
+      
+      - name: compile
+        uses: pypa/cibuildwheel@v2.5.0
+        env:
+          CIBW_ENVIRONMENT: VERSIONNUMBER=${{ inputs.version_number }}
+
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: ./wheelhouse/*.whl

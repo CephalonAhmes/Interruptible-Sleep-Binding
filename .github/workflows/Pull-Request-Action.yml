@@ -2,165 +2,78 @@ name: Pull-Request-Action
 
 on:
   pull_request:
-    branch: [ master ]
-    types: [ unlabeled, labeled, reopened, opened, synchronize, edited]
+    branches:
+      - master
+    paths-ignore:
+    - 'README.md'
+    - 'CHANGELOG.md'
 
 
 permissions: write-all
 
 jobs:
-  Validate-Pull-Request-Labels:
-    name: Validate-Pull-Request-Action
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - id: GetCurrentPRLabel
-        uses: zwaldowski/match-label-action@v1
-        with:
-          allowed: major, minor, patch
+  Get-New-Version-Number:
+    uses: ./.github/workflows/Get-New-Version-Number.yml
+    with:
+      change_type: patch
+      match: 'b0\.${{github.event.pull_request.number}}.*'
+      default: "0.${{github.event.pull_request.number}}.0"
 
-      - name: Label-Status-Comment
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          hide_and_recreate: true
-          header: Label-Status-Comment
-          message: "Invalid pull request labels, make sure to set one and only one of the following labels: major, minor"
-          
-      - name: Label-Status-Comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: Label-Status-Comment
-          message: "PR label checks passed successfully ✔"
+  Get-Changelog:
+    uses: ./.github/workflows/Get-Changelog.yml
 
-  Validate-Presence-Of-Patch-Notes:
-    name: Validate-Presence-Of-Patch-Notes
-    runs-on: ubuntu-latest
-    outputs:
-      Changelog: ${{ steps.PRDescriptValiate.outputs.Changelog }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Validate presence of PR description
-        id: PRDescriptValiate
-        env: 
-          body: ${{ github.event.pull_request.body }}
-        run: |
-          write-host "body = $($Env:body)"
-          $Matches = [regex]::Match( $Env:body, 'CHANGELOG:(?:\s|.)*')
-          $Changelog = $Matches.Groups[0].Value
-          if($Changelog){
-            $Changelog = $Changelog.Replace("`n", "%0A").Replace("`r", "%0D")
-            echo "::set-output name=Changelog::$Changelog"
-          }
-          else{
-            exit 1
-          }
-        shell: pwsh
+  Build-Wheel:
+    needs: [Get-New-Version-Number, Get-Changelog]
+    uses: ./.github/workflows/Build-Wheels.yml
+    with:
+      version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
 
-      - name: Changelog-Status-Comment-Failure
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          hide_and_recreate: true
-          header: Changelog-Status-Comment
-          message: |
-            No changelog found in PR description. To add a changelog, add the following string to your description:
-            `CHANGELOG:`
-            Everything after it will be included in your changelog
-          
-      - name: Changelog-Status-Comment-Success
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: Changelog-Status-Comment
-          message: "Changelog found ✔"
-
-  Build:
-    name: Build and test wheels on ${{matrix.os}}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{matrix.os}}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10.4'
-      - name: compile
-        run: |
-          python ./setup.py bdist_wheel clean
-      
-      - name: Test compiled wheel
-        shell: pwsh
-        run: |
-          $wheel = Get-ChildItem ./dist/*.whl | select -First 1
-          if(-not $wheel){
-            Write-Error "No wheel found"
-            ecit 1
-          }
-          python -m pip install $wheel.FullName
-          python -m pytest
-
-  Build:
-    name: Build and test sdist
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10.4'
-      - name: compile
-        run: |
-          python ./setup.py sdist clean
-      
-      - name: Test sdist install
-        shell: pwsh
-        run: |
-          $sdist = Get-ChildItem ./dist/*.tar.gz | select -First 1
-          if(-not $sdist){
-            Write-Error "No wheel found"
-            ecit 1
-          }
-          python -m pip install $sdist.FullName
-          python -m pytest
+  Build-Sdist:
+    needs: [Get-New-Version-Number, Get-Changelog]
+    uses: ./.github/workflows/Build-Sdists.yml
+    with:
+      version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
 
   Create-Pre-Release:
+    needs: [Build-Sdist, Build-Wheel, Get-New-Version-Number, Get-Changelog]
     name: Create-Pre-Release
     runs-on: ubuntu-latest
-    needs: Validate-Presence-Of-Patch-Notes
     steps:
       - uses: actions/checkout@v2
-      - id: CreateNewVersionNumber
-        env:
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-        uses: zwaldowski/semver-release-action@v2
+
+      - name: download-artifacts
+        uses: actions/download-artifact@v3
         with:
-          bump: prerelease
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          name: dist
+          path: dist/
 
       - name: Create-Prerelease
         id: Create-Prerelease
         uses: softprops/action-gh-release@v1
         with:
+          target_commitish: ${{ github.event.pull_request.head.sha }}
           prerelease: true
-          body: "${{needs.Validate-Presence-Of-Patch-Notes.outputs.Changelog}}"
-          name: ${{ github.event.pull_request.title }}
-          tag_name: ${{ steps.CreateNewVersionNumber.outputs.version }}
+          body: ${{needs.Get-Changelog.outputs.changelog}}
+          name: b${{needs.Get-New-Version-Number.outputs.new_version}} - ${{ github.event.pull_request.title }}
+          tag_name: b${{needs.Get-New-Version-Number.outputs.new_version}}
+          files: dist/*
       
       - name: Create-Release-Sticky-Comment
-        if: ${{!steps.fc.outputs.comment-id}}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           hide_and_recreate: true
           header: Pre-Release Header
           message: |
-            [ Pre-release ${{ steps.CreateNewVersionNumber.outputs.version }} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
+            [ Pre-release b${{needs.Get-New-Version-Number.outputs.new_version}} was built successfully](${{ steps.Create-Prerelease.outputs.url }})
 
-      - name: Pre-Release-Sticky-Comment-Failure
-        if: failure()
-        uses: marocchino/sticky-pull-request-comment@v2
+      - name: Upload-To-Pypi
+        uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
-          hide_and_recreate: true
-          header: Pre-Release Header
-          message: Failed to create pre-release
+          user: __token__
+          password: ${{ secrets.PYPI_TEST_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+
+  Post-Flow-Cleanup:
+    needs: [Build-Sdist, Build-Wheel, Create-Pre-Release]
+    if: always()
+    uses: ./.github/workflows/Post-Flow-Cleanup.yml

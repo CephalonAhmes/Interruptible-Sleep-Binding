@@ -1,0 +1,11 @@
+on:
+  workflow_call:
+
+
+jobs:
+  Post-Flow-Cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: geekyeggo/delete-artifact@v1
+        with:
+          name: dist

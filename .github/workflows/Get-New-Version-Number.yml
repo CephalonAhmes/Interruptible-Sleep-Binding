@@ -1,0 +1,58 @@
+on:
+  workflow_call:
+    inputs:
+      change_type:
+        description: "Dictates the version increment"
+        required: true
+        type: string
+
+      match:
+        description: "Used to find the latest tag"
+        required: true
+        type: string
+      
+      default:
+        description: "If no match is found"
+        required: true
+        type: string
+
+    outputs:
+      new_version: 
+        description: "Final returned version number"
+        value: ${{ jobs.Get-New-Version-Number.outputs.new_version }}
+
+jobs:
+  Get-New-Version-Number:
+    name: Get-New-Version-Number
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.select-final-version-output.outputs.new_version  }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: get-latest-tag
+        shell: pwsh
+        run: |
+          git fetch --all --tags
+          $tags =  git tag -l | sort -V
+          $latest_tag = $tags | where-object{ $_ -match "${{inputs.match}}" } | select -Last 1
+          if($latest_tag){
+            echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
+          }
+
+      - uses: actions-ecosystem/action-bump-semver@v1
+        id: bump-semver
+        if: ${{ steps.get-latest-tag.outputs.latest_tag }}
+        with:
+          current_version: ${{ steps.get-latest-tag.outputs.latest_tag }}
+          level: ${{inputs.change_type}}
+      
+      - name: select-final-version-output
+        id: select-final-version-output
+        shell: pwsh
+        run: |
+          if("${{ steps.get-latest-tag.outputs.latest_tag }}"){
+            echo "::set-output name=new_version::${{ steps.bump-semver.outputs.new_version  }}"
+          }
+          else{
+            echo "::set-output name=new_version::${{inputs.default}}"
+          }

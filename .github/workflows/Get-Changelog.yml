@@ -1,0 +1,19 @@
+on:
+  workflow_call:
+    outputs:
+      changelog: 
+        value: ${{ jobs.Get-Changelog.outputs.changelog }}
+
+
+jobs:
+  Get-Changelog:
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog_reader.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          version: Unreleased

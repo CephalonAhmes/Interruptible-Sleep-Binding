@@ -1,0 +1,33 @@
+name: Validate-PR-Label
+on:
+  pull_request:
+    branch: [ master ]
+    types: [ unlabeled, labeled, reopened, opened, synchronize, edited]
+
+
+permissions: write-all
+
+jobs:
+  Validate-PR-Label:
+    name: Validate-PR-Label
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - id: GetCurrentPRLabel
+        uses: zwaldowski/match-label-action@v1
+        with:
+          allowed: major, minor, patch
+
+      - name: Label-Status-Comment
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          hide_and_recreate: true
+          header: Label-Status-Comment
+          message: "Invalid pull request labels, make sure to set one and only one of the following labels: major, minor"
+          
+      - name: Label-Status-Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: Label-Status-Comment
+          message: "PR label checks passed successfully ✔"

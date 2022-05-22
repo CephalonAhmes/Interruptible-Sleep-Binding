@@ -1,12 +1,10 @@
 import setuptools
 from setuptools.command.build_ext import build_ext
-import struct
-import os
+import os, sys, io
 import glob
 import shutil
-import pathlib
+import pathlib, json
 
-BITS = struct.calcsize("P") * 8
 CMAKE_Target_Name = "PythonBinding"
 RootDirectory = os.path.dirname(os.path.abspath(__file__))
 
@@ -48,38 +46,26 @@ class BuildCMakeExt(build_ext):
         """
 
         self.announce("Preparing the build environment", level=3)
-
-        build_dir = pathlib.Path(self.build_temp)
-
+        self.build_dir = pathlib.Path("./build/")
         extension_path = pathlib.Path(self.get_ext_fullpath(extension.name))
 
-        os.makedirs(build_dir, exist_ok=True)
+        os.makedirs(self.build_dir, exist_ok=True)
         os.makedirs(extension_path.parent.absolute(), exist_ok=True)
 
-        # Now that the necessary directories are created, build
 
-        self.announce("Configuring cmake project", level=3)
-
-        # Change your cmake arguments below as necessary
-        # Below is just an example set of arguments for building Blender as a Python module
-
-        self.spawn(['cmake', '-S'+RootDirectory, '-B'+self.build_temp,
+        self.announce(f"Configuring cmake project to location {self.build_dir}", level=3)
+        self.spawn(['cmake', '-S'+RootDirectory, '-B'+str(self.build_dir),
                     '-DWITH_PLAYER=OFF', '-DWITH_PYTHON_INSTALL=OFF',
-                    '-DWITH_PYTHON_MODULE=ON',
-                    f"-DCMAKE_GENERATOR_PLATFORM=x"
-                    f"{'86' if BITS == 32 else '64'}"])
+                    '-DWITH_PYTHON_MODULE=ON', "-DPYTHON_EXECUTABLE:FILEPATH="+sys.executable
+                ])
 
-        self.announce("Building binaries", level=3)
-
-        self.spawn(["cmake", "--build", self.build_temp, "--target", CMAKE_Target_Name,
+        self.announce(f"Building binaries to location {self.build_dir}", level=3)
+        self.spawn(["cmake", "--build", str(self.build_dir), "--target", CMAKE_Target_Name,
                     "--config", "Release"])
 
-        # Build finished, now copy the files into the copy directory
-        # The copy directory is the parent directory of the extension (.pyd)
 
-        self.announce("Moving built python module", level=3)
-
-        bin_dir = os.path.join(build_dir, 'Release')
+        bin_dir = os.path.join(RootDirectory, './build/lib')
+        self.announce(f"Moving built python module out of {bin_dir}", level=3)
         self.distribution.bin_dir = bin_dir
 
         pyd_path = [os.path.join(bin_dir, _pyd) for _pyd in
@@ -107,22 +93,34 @@ class CleanCommand(setuptools.Command):
             shutil.rmtree(file_to_delete)
 
 
+def get_version_number():
+    if os.path.isfile("package_version.json"):
+        with io.open("package_version.json", mode='r', encoding='utf-8-sig') as file:
+            data = json.load(file)
+
+        return data['VERSIONNUMBER']
+
+    return os.environ.get('VERSIONNUMBER', "0.0.0")
+
+
 setuptools.setup(name='InterruptibleSleepBinding',
-                 version=os.environ.get('VERSIONNUMBER', "0.0.0"),
+                 version=get_version_number(),
                  ext_modules=[CMakeExtension(
                      name="InterruptibleSleepBinding")],
                  description="A single-function module created in c++ to get around time.sleep()'s limitations when handling signals",
                  long_description=open("./README.md", 'r').read(),
                  long_description_content_type="text/markdown",
                  keywords="test, cmake, extension",
+                 url="https://github.com/CephalonAhmes/Interruptible-Sleep-Binding",
                  classifiers=["Intended Audience :: Developers",
-                              "License :: OSI Approved :: "
-                              "GNU Lesser General Public License v3 (LGPLv3)",
+                              "License :: OSI Approved :: MIT License",
                               "Natural Language :: English",
                               "Programming Language :: C++",
                               "Programming Language :: Python",
-                              "Programming Language :: Python :: Implementation :: CPython"],
-                 license='GPL-3.0',
+                              "Programming Language :: Python :: Implementation :: CPython",
+                              "Topic :: Software Development :: Libraries :: Python Modules"
+                              ],
+                 license_files = ('LICENSE',),
                  cmdclass={
                      'build_ext': BuildCMakeExt,
                      'clean': CleanCommand,
