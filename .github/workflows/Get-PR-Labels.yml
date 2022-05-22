@@ -1,0 +1,44 @@
+name: Get-PR-Label
+on:
+  workflow_call:
+    outputs:
+      PRLabel: 
+        value: ${{ jobs.Get-PR-Label.outputs.PR-label }}
+  pull_request:
+    branches: [ master ]
+    types: [ unlabeled, labeled, edited ]
+
+permissions: write-all
+
+jobs:
+  Get-PR-Label:
+    name: Get-PR-Label
+    runs-on: ubuntu-latest
+    outputs:
+      PR-label: ${{ steps.GetCurrentPRLabel.outputs.PR-label }}
+    steps:
+      - uses: actions/checkout@v2
+      - id: GetCurrentPRLabel
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $Labels_List = (gh pr view --json labels | ConvertFrom-JSON).labels.name
+
+          [Array]$Result= $Labels_List | Where-Object { $("minor", 'major','patch').contains($_) }
+          if ($Result.Length -ne 1){
+            exit 1
+          }
+          else{
+            echo "::set-output name=PR-label::$($Result[0])"
+          }
+           
+
+      - name: Failure
+        if: failure()
+        run: |
+          echo "Invalid pull request labels, make sure to set one and only one of the following labels on the pull request: major, minor, patch" >> $GITHUB_STEP_SUMMARY
+
+      - name: Success
+        run: |
+          echo "PR label checks passed successfully ✔" >> $GITHUB_STEP_SUMMARY

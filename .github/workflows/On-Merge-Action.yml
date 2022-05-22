@@ -14,15 +14,8 @@ permissions: write-all
 jobs:
   Get-PR-Label:
     name: Get-PR-Label
-    runs-on: ubuntu-latest
-    outputs:
-      PRLabel: ${{steps.GetCurrentPRLabel.outputs.match}}
-    steps:
-      - uses: actions/checkout@v2
-      - id: GetCurrentPRLabel
-        uses: zwaldowski/match-label-action@v1
-        with:
-          allowed: major, minor, patch
+    uses: ./.github/workflows/Get-PR-Labels.yml
+
 
   Get-New-Version-Number:
     needs: Get-PR-Label
