@@ -1,0 +1,94 @@
+name: On-Merge-Action
+
+on:
+  push:
+    branch: [ master ]
+    paths-ignore:
+    - 'README.md'
+    - 'CHANGELOG.md'
+
+
+permissions: write-all
+
+jobs:
+  Get-PR-Label:
+    name: Get-PR-Label
+    runs-on: ubuntu-latest
+    outputs:
+      PRLabel: ${{steps.GetCurrentPRLabel.outputs.match}}
+    steps:
+      - uses: actions/checkout@v2
+      - id: GetCurrentPRLabel
+        uses: zwaldowski/match-label-action@v1
+        with:
+          allowed: major, minor, patch
+
+  Get-New-Version-Number:
+    needs: Get-PR-Label
+    uses: ./.github/workflows/Get-New-Version-Number.yml
+    with:
+      change_type: ${{needs.Get-PR-Label.outputs.PRLabel}}
+      match: "v.*"
+      default: "0.0.0"
+
+  Get-Changelog:
+    uses: ./.github/workflows/Get-Changelog.yml
+
+  Build-Wheel:
+    needs: [Get-New-Version-Number, Get-Changelog]
+    uses: ./.github/workflows/Build-Wheels.yml
+    with:
+      version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
+
+  Build-Sdist:
+    needs: [Get-New-Version-Number, Get-Changelog]
+    uses: ./.github/workflows/Build-Sdists.yml
+    with:
+      version_number: ${{needs.Get-New-Version-Number.outputs.new_version}}
+
+  Create-Release:
+    needs: [Build-Sdist, Build-Wheel, Get-New-Version-Number, Get-Changelog]
+    name: Create-Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: download-artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create-Release
+        id: Create-Release
+        uses: softprops/action-gh-release@v1
+        with:
+          target_commitish: ${{ github.sha }}
+          body: ${{needs.Get-Changelog.outputs.changelog}}
+          name: "v${{needs.Get-New-Version-Number.outputs.new_version}} - ${{ github.event.pull_request.title }}"
+          tag_name: "v${{needs.Get-New-Version-Number.outputs.new_version}}"
+          files: dist/*
+      
+      - name: Upload-To-Pypi
+        uses: pypa/gh-action-pypi-publish@v1.5.0
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
+      
+      - name: Update-Changelog
+        uses: thomaseizinger/keep-a-changelog-new-release@v1
+        with:
+          tag: "v${{needs.Get-New-Version-Number.outputs.new_version}}"
+      
+      - name: push changes
+        run: |
+          git fetch
+          git pull
+          git add -A
+          git commit -m "Update changelog file for v${{needs.Get-New-Version-Number.outputs.new_version}} release"
+          git push -f
+
+  Post-Flow-Cleanup:
+    needs: [Build-Sdist, Build-Wheel, Create-Release]
+    if: always()
+    uses: ./.github/workflows/Post-Flow-Cleanup.yml

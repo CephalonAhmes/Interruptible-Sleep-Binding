@@ -3,6 +3,10 @@ name: Pull-Request-Action
 on:
   pull_request:
     branch: [ master ]
+    paths-ignore:
+    - 'README.md'
+    - 'CHANGELOG.md'
+
 
 permissions: write-all
 
