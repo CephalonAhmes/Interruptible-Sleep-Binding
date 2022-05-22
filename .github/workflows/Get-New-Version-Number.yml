@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           git fetch --all --tags
-          $tags = git tag -l
+          $tags =  git tag -l | sort -V
           $latest_tag = $tags | where-object{ $_ -match "${{inputs.match}}" } | select -Last 1
           if($latest_tag){
             echo "::set-output name=latest_tag::$($latest_tag.substring(1))"
