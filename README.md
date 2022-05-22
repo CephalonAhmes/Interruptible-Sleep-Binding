@@ -15,4 +15,11 @@ would do the trick. Well... Sorta, but I hate it. So I made a custom replacement
 
 ## Usage
 
-To install, just `pip install {{}}`
+To install, just `pip install InterruptibleSleepBinding`. I've compiled a few wheels to make the module easier to install, but if you need to install from sdist, you will need to have cmake installed.
+
+Here's an example of using the module:
+```
+import InterruptibleSleepBinding
+
+response = InterruptibleSleepBinding.sleep_for_x_milliseconds(55)
+```
