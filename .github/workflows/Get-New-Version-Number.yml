@@ -52,7 +52,9 @@ jobs:
         run: |
           if("${{ steps.get-latest-tag.outputs.latest_tag }}"){
             echo "::set-output name=new_version::${{ steps.bump-semver.outputs.new_version  }}"
+            echo "Version number: ${{ steps.bump-semver.outputs.new_version  }}" >> $GITHUB_STEP_SUMMARY
           }
           else{
             echo "::set-output name=new_version::${{inputs.default}}"
+            echo "Version number: ${{inputs.default}}" >> $GITHUB_STEP_SUMMARY
           }
