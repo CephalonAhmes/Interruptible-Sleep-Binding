@@ -1,21 +1,21 @@
 name: On-Merge-Action
 
 on:
-  push:
+  pull_request:
     branches:
       - master
+    types: [ closed ]
     paths-ignore:
     - 'README.md'
     - 'CHANGELOG.md'
-
 
 permissions: write-all
 
 jobs:
   Get-PR-Label:
+    if: github.event.pull_request.merged == true
     name: Get-PR-Label
     uses: ./.github/workflows/Get-PR-Labels.yml
-
 
   Get-New-Version-Number:
     needs: Get-PR-Label
@@ -26,6 +26,7 @@ jobs:
       default: "0.0.0"
 
   Get-Changelog:
+    if: github.event.pull_request.merged == true
     uses: ./.github/workflows/Get-Changelog.yml
 
   Build-Wheel:

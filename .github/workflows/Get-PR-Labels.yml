@@ -1,12 +1,13 @@
 name: Get-PR-Label
 on:
+  pull_request:
+    branches:
+      - master
+    types: [ unlabeled, labeled, reopened, opened, synchronize, edited]
   workflow_call:
     outputs:
       PRLabel: 
         value: ${{ jobs.Get-PR-Label.outputs.PR-label }}
-  pull_request:
-    branches: [ master ]
-    types: [ unlabeled, labeled, edited ]
 
 permissions: write-all
 
@@ -15,23 +16,13 @@ jobs:
     name: Get-PR-Label
     runs-on: ubuntu-latest
     outputs:
-      PR-label: ${{ steps.GetCurrentPRLabel.outputs.PR-label }}
+      PR-label: ${{ steps.GetCurrentPRLabel.outputs.match }}
     steps:
+      - uses: actions/checkout@v2
       - id: GetCurrentPRLabel
-        shell: pwsh
-        run: |
-          $Labels_List = @"
-            ${{ toJSON(github.event.pull_request.labels.*.name) }}
-          "@ | ConvertFrom-JSON
-
-          [Array]$Result= $Labels_List | Where-Object { $("minor", 'major','patch').contains($_) }
-          if ($Result.Length -ne 1){
-            exit 1
-          }
-          else{
-            echo "::set-output name=PR-label::$($Result[0])"
-          }
-           
+        uses: zwaldowski/match-label-action@v1
+        with:
+          allowed: major, minor, patch
 
       - name: Failure
         if: failure()
