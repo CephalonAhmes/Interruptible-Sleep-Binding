@@ -7,4 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Initial implementation of library.
 - Initial CI/CD implementation for automated testing and easy deployments
-- Initial implementation of changelog 
+- Initial implementation of changelog updater
