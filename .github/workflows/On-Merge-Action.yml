@@ -73,7 +73,7 @@ jobs:
       - name: Update-Changelog
         uses: thomaseizinger/keep-a-changelog-new-release@v1
         with:
-          tag: "v${{needs.Get-New-Version-Number.outputs.new_version}}"
+          version: "v${{needs.Get-New-Version-Number.outputs.new_version}}"
       
       - name: push changes
         run: |
