@@ -6,8 +6,12 @@ on:
         type: string
 
 jobs:
-  Build-Wheel:
-    name: Build and test wheels on ${{matrix.os}}
+  Get-build-strings:
+    name: Get-build-strings for ${{matrix.os}}
+    outputs:
+      list-ubuntu: ${{ steps.Get-identifiers.outputs.ubuntu-latest }}
+      list-windows: ${{ steps.Get-identifiers.outputs.windows-latest }}
+      list-macos: ${{ steps.Get-identifiers.outputs.macos-latest }}
     strategy:
       fail-fast: false
       matrix:
@@ -15,17 +19,88 @@ jobs:
     runs-on: ${{matrix.os}}
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: recursive
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: '3.10.4'
+
+      - name: install dependencies
+        run: |
+          python -m pip install cibuildwheel
+
+      - id: Get-identifiers
+        shell: pwsh
+        run: |
+          [Array]$identifiers = python -m cibuildwheel --print-build-identifiers
+          echo "::set-output name=${{ matrix.os }}::$($identifiers | ConvertTo-Json -Compress)"
+
+  Create-Jobs-Matrix:
+    name: Create-Jobs-Matrix
+    needs: Get-build-strings
+    outputs:
+      matrix: ${{ steps.Get-identifiers.outputs.matrix }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: Get-identifiers
+        shell: pwsh
+        run: |
+          function split-array($inArray){
+            $chunkSize = 3
+            $outArray = New-Object System.Collections.ArrayList
+            $number_of_groups = [math]::Ceiling($inArray.Length / $chunkSize)
+            
+            for($i=0; $i -lt $number_of_groups; $i++){
+                $start = $i*$chunkSize
+                $end = (($i+1)*$chunkSize)-1
+                $null = $outArray.add($inArray[$start..$end])
+            }
+            
+            return $outArray
+          }
+
+          $includes = @()
+          split-array ('${{needs.Get-build-strings.outputs.list-ubuntu}}' | convertfrom-json) | foreach-object{
+            $includes += @{
+              os = "ubuntu-latest"
+              build_string = $_ -join " "
+            }
+          }
+
+          split-array ('${{needs.Get-build-strings.outputs.list-macos}}' | convertfrom-json) | foreach-object{
+            $includes += @{
+              os = "macos-latest"
+              build_string = $_ -join " "
+            }
+          }
+          split-array ('${{needs.Get-build-strings.outputs.list-windows}}' | convertfrom-json) | foreach-object{
+            $includes += @{
+              os = "windows-latest"
+              build_string = $_ -join " "
+            }
+          }
+
+          echo "::set-output name=matrix::$($includes | ConvertTo-Json -Compress -Depth 5)"
+
+
+
+  Build-Wheel:
+    name: Build and test ${{matrix.os}}
+    needs: Create-Jobs-Matrix
+    strategy:
+      fail-fast: false
+      matrix: 
+        include: ${{ fromJson(needs.Create-Jobs-Matrix.outputs.matrix) }}
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
       
       - name: compile
         uses: pypa/cibuildwheel@v2.5.0
         env:
           CIBW_ENVIRONMENT: VERSIONNUMBER=${{ inputs.version_number }}
+          CIBW_BUILD: ${{matrix.build_string}}
 
 
       - uses: actions/upload-artifact@v3

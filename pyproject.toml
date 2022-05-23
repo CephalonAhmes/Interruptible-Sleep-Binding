@@ -6,7 +6,7 @@ requires = [
 ]
 
 [tool.cibuildwheel]
-before-test = "python -m pip install pytest"
+test-requires = "pytest"
 test-command = "python -m pytest {package}/tests"
 skip = ["*-win32"]
 
