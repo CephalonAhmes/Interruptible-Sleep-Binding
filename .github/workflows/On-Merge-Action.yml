@@ -77,6 +77,8 @@ jobs:
       
       - name: push changes
         run: |
+          git config --global user.email "Github@Actions.com"
+          git config --global user.name "Github Actions"
           git fetch
           git pull
           git add -A
