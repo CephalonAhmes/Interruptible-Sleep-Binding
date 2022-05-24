@@ -57,7 +57,7 @@ jobs:
         with:
           target_commitish: ${{ github.sha }}
           body: ${{needs.Get-Changelog.outputs.changelog}}
-          name: "v${{needs.Get-New-Version-Number.outputs.new_version}} - ${{ github.event.pull_request.title }}"
+          name: "v${{needs.Get-New-Version-Number.outputs.new_version}}"
           tag_name: "v${{needs.Get-New-Version-Number.outputs.new_version}}"
           files: dist/*
       
