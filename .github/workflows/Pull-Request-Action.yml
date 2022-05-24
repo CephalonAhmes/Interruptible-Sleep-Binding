@@ -4,9 +4,7 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-    - 'README.md'
-    - 'CHANGELOG.md'
+
 
 
 permissions: write-all
@@ -54,7 +52,7 @@ jobs:
           target_commitish: ${{ github.event.pull_request.head.sha }}
           prerelease: true
           body: ${{needs.Get-Changelog.outputs.changelog}}
-          name: b${{needs.Get-New-Version-Number.outputs.new_version}} - ${{ github.event.pull_request.title }}
+          name: b${{needs.Get-New-Version-Number.outputs.new_version}}
           tag_name: b${{needs.Get-New-Version-Number.outputs.new_version}}
           files: dist/*
       
