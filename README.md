@@ -13,13 +13,19 @@ for i in range(60):
 ```
 would do the trick. Well... Sorta, but I hate it. So I made a custom replacement in C++
 
-## Usage
+## Installation
 
 To install, just `pip install InterruptibleSleepBinding`. I've compiled a few wheels to make the module easier to install, but if you need to install from sdist, you will need to have cmake installed.
 
+## Usage
 Here's an example of using the module:
 ```
 import InterruptibleSleepBinding
+import signal
 
-response = InterruptibleSleepBinding.sleep_for_x_milliseconds(55)
+response = InterruptibleSleepBinding.sleep_for_x_milliseconds(5500)
+if response != -1:
+	signal.raise_signal(response)
 ```
+
+After the time period is elapsed,  certain amount of time. SIGINT and SIGTERM should interrupt the sleep and return to the python execution. The caught signal will be returned to the python side for you to handle. If no signal was caught during the execution, a value of -1 is returned.
