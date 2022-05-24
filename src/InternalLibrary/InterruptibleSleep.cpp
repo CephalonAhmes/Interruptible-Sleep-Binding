@@ -1,38 +1,44 @@
-#include <thread>
-#include <chrono>
-#include <csignal>
-#include <system_error>
-#include <condition_variable>
-#include <atomic>
 #include "InterruptibleSleep.h"
 
-std::condition_variable cv;
-std::atomic<bool> signal_caught;
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <csignal>
+#include <system_error>
+#include <unordered_map>
+#include <vector>
 
-void signal_handler(int signal){
+std::condition_variable cv;
+std::atomic<int> caugth_signal;
+
+void signal_handler(int signal) {
     cv.notify_all();
-    signal_caught = true;
+    caugth_signal = signal;
 }
 
-int sleep_for_x_milliseconds(int milliseconds_to_sleep_for)
-{
-    signal_caught = false;
-    auto old_sig_int_handler = std::signal(SIGINT, signal_handler);
-    if ( old_sig_int_handler == SIG_ERR ) {
-        throw std::runtime_error("Failed to set internal signal handler");
-    }
-
+int sleep_for_x_milliseconds(int milliseconds_to_sleep_for) {
+    caugth_signal = -1;
     std::mutex m;
     std::unique_lock<std::mutex> lock(m);
+    std::vector<int> signals_to_handle = {SIGINT, SIGTERM};
+    std::unordered_map<int, _crt_signal_t> old_signal_handlers = {};
+
+    for (int signal : signals_to_handle) {
+        old_signal_handlers[signal] = std::signal(signal, signal_handler);
+        if (old_signal_handlers[signal] == SIG_ERR) {
+            throw std::runtime_error("Failed to set internal signal handler");
+        }
+    }
+
     cv.wait_for(lock, std::chrono::milliseconds(milliseconds_to_sleep_for));
-    auto response = std::signal(SIGINT, old_sig_int_handler);
-    if ( response == SIG_ERR ) {
-        throw std::runtime_error("Failed to reset to initial signal handler");
+
+    for (std::pair<int, _crt_signal_t> element : old_signal_handlers) {
+        auto response = std::signal(element.first, element.second);
+        if (response == SIG_ERR) {
+            throw std::runtime_error(
+                "Failed to reset to initial signal handler");
+        }
     }
 
-    if(signal_caught){
-        return SIGINT;
-    }
-
-    return -1;
+    return caugth_signal;
 }
