@@ -6,8 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
--	Various workflow and documentation improvements.
--	With this, we've reached out 1.0 version! 🎉
+
+## [v1.0.0] - 2022-05-24
+
+-   Various workflow and documentation improvements.
+-   With this, we've reached out 1.0 version! 🎉
 
 ## [v0.1.0] - 2022-05-24
 
@@ -15,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Initial CI/CD implementation for automated testing and easy deployments
 -   Initial implementation of changelog updater
 
-[Unreleased]: https://github.com/CephalonAhmes/Interruptible-Sleep-Binding/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/CephalonAhmes/Interruptible-Sleep-Binding/compare/v1.0.0...HEAD
+
+[v1.0.0]: https://github.com/CephalonAhmes/Interruptible-Sleep-Binding/compare/v0.1.0...v1.0.0
 
 [v0.1.0]: https://github.com/CephalonAhmes/Interruptible-Sleep-Binding/compare/d1b0818c8e69c683bc4e455cdc952b4b868cece4...v0.1.0
