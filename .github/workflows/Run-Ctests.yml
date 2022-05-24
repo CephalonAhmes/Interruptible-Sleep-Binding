@@ -2,9 +2,7 @@ name: Run-Ctests
 on:
   pull_request:
     branches: [ master ]
-    paths-ignore:
-    - 'README.md'
-    - 'CHANGELOG.md'
+
 
 jobs:
   checkout-and-check-formatting:

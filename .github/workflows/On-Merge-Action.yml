@@ -5,9 +5,6 @@ on:
     branches:
       - master
     types: [ closed ]
-    paths-ignore:
-    - 'README.md'
-    - 'CHANGELOG.md'
 
 permissions: write-all
 

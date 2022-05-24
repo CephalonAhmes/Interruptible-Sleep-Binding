@@ -28,4 +28,4 @@ if response != -1:
 	signal.raise_signal(response)
 ```
 
-After the time period is elapsed,  certain amount of time. SIGINT and SIGTERM should interrupt the sleep and return to the python execution. The caught signal will be returned to the python side for you to handle. If no signal was caught during the execution, a value of -1 is returned.
+Works pretty much like time.sleep(). SIGINT and SIGTERM should interrupt the sleep and return to the python execution. The caught signal will be returned to the python side for you to handle. If no signal was caught during the execution, a value of -1 is returned.
