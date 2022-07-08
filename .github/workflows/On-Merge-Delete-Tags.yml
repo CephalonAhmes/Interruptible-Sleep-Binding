@@ -1,0 +1,26 @@
+name: On-Merge-DeletePrereleases
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [ closed ]
+
+permissions: write-all
+
+jobs:
+  Delete-Pre-Release:
+    name: Delete-Pre-Releases
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+    
+      - run: |
+          $a = gh release list
+          $tags = $a | Where-Object {[regex]::matches($_, "b0.${{github.event.pull_request.number}}.*")}`
+            | foreach-object { [regex]::match($_, "^b0.${{github.event.pull_request.number}}.\S*").Groups[0].value}
+          $tags | foreach-object {  gh release delete $_ --yes }
+        shell:
+          pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
